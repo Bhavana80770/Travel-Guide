@@ -1,24 +1,27 @@
 from flask import Flask, request, jsonify
-from google import genai
 from flask_cors import CORS
 import requests
 import tempfile
 import base64
 import os
 from dotenv import load_dotenv
+import google.generativeai as genai
 
-# Load environment variables from .env (for local development)
+# Load environment variables (local dev)
 load_dotenv()
 
 # Environment Variables
 MURF_API_KEY = os.getenv("MURF_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Safety check (optional but recommended)
 if not MURF_API_KEY or not GEMINI_API_KEY:
-    raise ValueError("API keys not found. Check your .env or Render environment variables.")
+    raise ValueError("API keys not found. Check Render environment variables.")
 
-# Prompt templates
+# -------------------- Gemini Setup --------------------
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+# -------------------- Prompt Templates --------------------
 PROMPTS = {
     "Summary": """
 You are a professional tourist guide.
@@ -29,8 +32,7 @@ Focus on:
 - Why the place is famous
 - Key architectural or cultural highlights
 
-Keep the explanation concise, engaging, and easy to follow.
-Avoid excessive details and dates.
+Keep the explanation concise and engaging.
 Limit the response to around 200 words.
 
 Respond ONLY in {language}.
@@ -44,19 +46,16 @@ Focus on:
 - Cultural importance
 - Major attractions
 
-Keep it engaging and informative.
+Keep it informative and engaging.
 Limit the response to around 300 words.
 
 Respond ONLY in {language}.
 """
 }
 
-# Flask app
+# -------------------- Flask App --------------------
 app = Flask(__name__)
 CORS(app)
-
-# Gemini client
-client = genai.Client(api_key=GEMINI_API_KEY)
 
 # -------------------- Murf Speech Generator --------------------
 def generate_speech(text, voice_id, locale):
@@ -92,13 +91,12 @@ def generate_speech(text, voice_id, locale):
 
 # -------------------- Gemini Description Generator --------------------
 def generate_description(place, answer_type, language):
-    prompt = PROMPTS[answer_type].format(place=place, language=language)
-
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
+    prompt = PROMPTS[answer_type].format(
+        place=place,
+        language=language
     )
 
+    response = model.generate_content(prompt)
     return response.text
 
 # -------------------- API Route --------------------
