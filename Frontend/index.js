@@ -45,64 +45,55 @@ function selectDestination(place, image, clickedCard = null) {
   state.place = place;
   state.image = image;
 
-  // Update UI content
   previewTitle.textContent = place;
   cardsContainer.classList.add('faded');
 
-  // Reset previous states
-  document.querySelectorAll('.place-card').forEach(card => card.classList.remove('active'));
+  document.querySelectorAll('.place-card').forEach(card =>
+    card.classList.remove('active')
+  );
   searchPreviewCard.classList.add('hidden');
 
-  // Handle Card Visibility
   if (clickedCard) {
     clickedCard.classList.add('active');
   } else {
-    // If it's a search result, show the preview card
     searchPreviewImage.src = image;
     searchPreviewTitle.textContent = place;
     searchPreviewCard.classList.remove('hidden');
     searchPreviewCard.classList.add('active');
   }
 
-  // Reset Audio Panel
   audioSection.classList.add('hidden');
   audioPlayer.src = '';
   transcriptText.textContent = '';
   generateButton.textContent = 'Generate Audio Guide';
   generateButton.disabled = false;
 
-  // Show Panel with animation
   experiencePanel.classList.remove('hidden');
-  setTimeout(() => {
-    experiencePanel.classList.add('visible');
-  }, 10);
+  setTimeout(() => experiencePanel.classList.add('visible'), 10);
 }
 
 function deselectDestination() {
   experiencePanel.classList.remove('visible');
-
-  // Wait for animation to finish before hiding
   setTimeout(() => {
     experiencePanel.classList.add('hidden');
     cardsContainer.classList.remove('faded');
     searchPreviewCard.classList.add('hidden');
-    document.querySelectorAll('.place-card').forEach(card => card.classList.remove('active'));
+    document.querySelectorAll('.place-card').forEach(card =>
+      card.classList.remove('active')
+    );
   }, 300);
 }
 
 // --- Event Listeners ---
 
-// Close Button
 closeButton.addEventListener('click', deselectDestination);
 
-// Card Clicks
 document.querySelectorAll('.place-card:not(.search-preview-card)').forEach(card => {
   card.addEventListener('click', () => {
     selectDestination(card.dataset.place, card.dataset.image, card);
   });
 });
 
-// Option Toggles (History Type)
 const lengthButtons = document.querySelectorAll('[data-group="length"] button');
 lengthButtons.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -112,7 +103,6 @@ lengthButtons.forEach(btn => {
   });
 });
 
-// Option Toggles (Voice Gender)
 const voiceButtons = document.querySelectorAll('[data-group="voice"] button');
 voiceButtons.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -123,12 +113,11 @@ voiceButtons.forEach(btn => {
 });
 
 
-// Generate Audio guide button Logic
-
-const GENERATE_AUDIO_GUIDE_API_URL = "http://127.0.0.1:5000/generate-audio-guide";
+// 🔥 ONLY UPDATED LINE (Render Backend URL)
+const GENERATE_AUDIO_GUIDE_API_URL =
+  "https://travel-guide-backend.onrender.com/generate-audio-guide";
 
 generateButton.addEventListener('click', async () => {
-  
   generateButton.disabled = true;
   generateButton.textContent = '⏳ Generating Audio...';
 
@@ -152,14 +141,12 @@ generateButton.addEventListener('click', async () => {
 
     const data = await response.json();
 
-    // Update UI with Result
     transcriptText.textContent = data.description;
     audioSection.classList.remove('hidden');
 
     if (data.audioBase64) {
       audioPlayer.src = `data:audio/mp3;base64,${data.audioBase64}`;
       audioPlayer.load();
-      audioPlayer.classList.remove('hidden');
       generateButton.textContent = 'Listen to Audio';
     } else {
       audioPlayer.classList.add('hidden');
@@ -174,7 +161,6 @@ generateButton.addEventListener('click', async () => {
   }
 });
 
-// Transcript Toggle
 transcriptToggle.addEventListener('click', () => {
   transcriptContent.classList.toggle('hidden');
   transcriptArrow.classList.toggle('rotate-180');
