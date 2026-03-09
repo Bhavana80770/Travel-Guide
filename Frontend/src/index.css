@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* Scrollbar hiding */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Audio controls */
+audio::-webkit-media-controls-panel {
+  background-color: #f9fafb;
+}
+
+/* Place card base */
+.place-card {
+  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform: translateZ(0);
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  max-width: 340px;
+}
+
+/* Active card in faded layout */
+.place-card.active {
+  animation: slideUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Experience panel transitions */
+.experience-invisible {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.experience-visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Global selection color */
+::selection {
+  background-color: #ff8a1f;
+  color: white;
+}
