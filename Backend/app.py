@@ -14,159 +14,102 @@ load_dotenv()
 MURF_API_KEY = os.getenv("MURF_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not MURF_API_KEY:
-    print("WARNING: MURF_API_KEY is missing!")
-if not GEMINI_API_KEY:
-    print("WARNING: GEMINI_API_KEY is missing!")
-
 if not MURF_API_KEY or not GEMINI_API_KEY:
-    raise ValueError("API keys not found. Check Render environment variables.")
-
-print("API keys found. Backend initialized.")
+    print("CRITICAL ERROR: API keys missing. Check Render Env Vars.")
+else:
+    print("API keys found. Proceeding with initialization.")
 
 # -------------------- Gemini Setup --------------------
 genai.configure(api_key=GEMINI_API_KEY)
 
+# --- STARTUP CHECK: List Available Models ---
+print("--- STARTUP: Available Gemini Models ---")
+try:
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            print(f"AVAILABLE MODEL: {m.name}")
+except Exception as e:
+    print(f"STARTUP ERROR: Could not list models: {str(e)}")
+print("--- STARTUP END ---")
+
 # -------------------- Prompt Templates --------------------
 PROMPTS = {
-    "Summary": """
-You are a professional tourist guide.
-Provide a high-level overview of "{place}" in {language}.
-
-Focus on:
-- The historical significance
-- Why the place is famous
-- Key architectural or cultural highlights
-
-Keep the explanation concise and engaging.
-Limit the response to around 200 words.
-
-Respond ONLY in {language}.
-""",
-
-    "Detailed": """
-You are a professional tourist guide.
-Provide a detailed explanation of "{place}" in {language}.
-
-Focus on:
-- History and background
-- Cultural importance
-- Major attractions
-
-Keep it informative and engaging.
-Limit the response to around 300 words.
-
-Respond ONLY in {language}.
-"""
+    "Summary": "Provide a high-level overview of \"{place}\" in {language}. Historical significance, why famous, key highlights. Concise, engaging, ~200 words. Respond ONLY in {language}.",
+    "Detailed": "Provide a detailed explanation of \"{place}\" in {language}. History, cultural importance, major attractions. Informative, engaging, ~300 words. Respond ONLY in {language}."
 }
 
 # -------------------- Flask App --------------------
 app = Flask(__name__)
-# Explicitly allow all origins and headers for CORS
 CORS(app, resources={r"/*": {"origins": "*", "allow_headers": ["Content-Type", "Authorization"]}})
 
-# -------------------- Health Check Route --------------------
 @app.route("/")
 def home():
-    return jsonify({"message": "Travel Guide Backend v3 - Debug Mode Live"})
+    return jsonify({
+        "message": "Travel Guide Backend v4 - Running",
+        "gemini_api_key_set": bool(GEMINI_API_KEY),
+        "murf_api_key_set": bool(MURF_API_KEY)
+    })
 
-# -------------------- Debug Models Route --------------------
 @app.route("/debug-models")
 def debug_models():
     try:
-        models = []
-        for m in genai.list_models():
-            models.append({
-                "name": m.name,
-                "supported_methods": m.supported_generation_methods,
-                "display_name": m.display_name
-            })
-        return jsonify({
-            "available_models": models,
-            "status": "success"
-        })
+        models = [{"name": m.name, "methods": m.supported_generation_methods} for m in genai.list_models()]
+        return jsonify({"available_models": models, "status": "success"})
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "status": "failed"
-        }), 500
+        return jsonify({"error": str(e), "status": "failed"}), 500
 
 # -------------------- Murf Speech Generator --------------------
 def generate_speech(text, voice_id, locale):
     temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
-
     url = "https://global.api.murf.ai/v1/speech/stream"
-
-    headers = {
-        "api-key": MURF_API_KEY,
-        "Content-Type": "application/json"
-    }
-
+    headers = {"api-key": MURF_API_KEY, "Content-Type": "application/json"}
     data = {
-        "voice_id": voice_id,
-        "text": text,
-        "multi_native_locale": locale,
-        "model": "FALCON",
-        "format": "MP3",
-        "sampleRate": 24000,
-        "channelType": "MONO"
+        "voice_id": voice_id, "text": text, "multi_native_locale": locale,
+        "model": "FALCON", "format": "MP3", "sampleRate": 24000, "channelType": "MONO"
     }
-
     response = requests.post(url, headers=headers, json=data, stream=True)
-
     if response.status_code == 200:
         with open(temp_file.name, "wb") as f:
             for chunk in response.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
+                if chunk: f.write(chunk)
     else:
         raise Exception(f"Murf API Error: {response.status_code} - {response.text}")
-
     return temp_file.name
-
 
 # -------------------- Gemini Description Generator --------------------
 def generate_description(place, answer_type, language):
-    prompt = PROMPTS[answer_type].format(
-        place=place,
-        language=language
-    )
-
-    # Expanded fallback list to handle regional model name differences and prefixes
+    prompt = PROMPTS[answer_type].format(place=place, language=language)
+    
+    # Try multiple variations and prefixes
     models_to_try = [
         "gemini-1.5-flash", 
         "gemini-1.5-flash-latest", 
         "models/gemini-1.5-flash", 
-        "models/gemini-1.5-flash-latest", 
-        "gemini-pro",
-        "models/gemini-pro",
-        "gemini-1.0-pro"
+        "models/gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+        "models/gemini-1.5-pro",
+        "gemini-pro"
     ]
     
     last_err = None
     for model_name in models_to_try:
         try:
-            print(f"Attempting to use model: {model_name}")
+            print(f"Attempting model: {model_name}")
             current_model = genai.GenerativeModel(model_name)
             response = current_model.generate_content(prompt)
-            print(f"Successfully generated content with {model_name}")
+            print(f"SUCCESS with {model_name}")
             return response.text
         except Exception as e:
-            print(f"Failed to use {model_name}: {str(e)}")
+            print(f"FAILED {model_name}: {str(e)}")
             last_err = e
             continue
     
-    if last_err:
-        raise last_err
-    return "Failed to generate description with any available model."
-
+    raise last_err
 
 # -------------------- API Route --------------------
 @app.route("/generate-audio-guide", methods=["POST"])
 def generate_audio_guide():
-
     data = request.json
-
     place = data.get("place")
     answer_type = data.get("answerType")
     language = data.get("language")
@@ -177,37 +120,17 @@ def generate_audio_guide():
         return jsonify({"error": "Missing required fields"}), 400
 
     try:
-        # Generate text description
-        print(f"Generating description for {place} in {language}...")
+        print(f"Processing: {place} ({language})")
         text_description = generate_description(place, answer_type, language)
-        print("Description generated successfully.")
-
-        # Generate speech
-        print(f"Generating speech with voice {voice_id}...")
         audio_path = generate_speech(text_description, voice_id, locale)
-        print("Speech generated successfully.")
-
-        # Convert audio to base64
         with open(audio_path, "rb") as audio_file:
             encoded_audio = base64.b64encode(audio_file.read()).decode("utf-8")
 
-        return jsonify({
-            "description": text_description,
-            "audioBase64": encoded_audio
-        })
+        return jsonify({"description": text_description, "audioBase64": encoded_audio})
     except Exception as e:
-        print(f"Error in generate_audio_guide: {str(e)}")
+        print(f"FULL ERROR: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
-
-
-# -------------------- Run Server --------------------
 if __name__ == "__main__":
-
     port = int(os.environ.get("PORT", 5000))
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
+    app.run(host="0.0.0.0", port=port)
