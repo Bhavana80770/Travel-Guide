@@ -1,0 +1,32 @@
+services:
+  # Backend service
+  - type: web
+    name: travel-guide-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MURF_API_KEY
+        sync: false
+    env: python
+    rootDir: Backend
+
+  # Frontend static site (Optional, Vercel/Netlify are usually better for Vite)
+  # But this allows Render to handle it too if the user prefers "one stop"
+  - type: web
+    name: travel-guide-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    rootDir: Frontend
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: travel-guide-backend
+          type: web
+          property: url
+        suffix: /generate-audio-guide

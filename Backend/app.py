@@ -7,10 +7,10 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load environment variables (local dev)
+# -------------------- Load Environment Variables --------------------
 load_dotenv()
 
-# Environment Variables
+# -------------------- API Keys --------------------
 MURF_API_KEY = os.getenv("MURF_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -37,6 +37,7 @@ Limit the response to around 200 words.
 
 Respond ONLY in {language}.
 """,
+
     "Detailed": """
 You are a professional tourist guide.
 Provide a detailed explanation of "{place}" in {language}.
@@ -62,6 +63,7 @@ def generate_speech(text, voice_id, locale):
     temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
 
     url = "https://global.api.murf.ai/v1/speech/stream"
+
     headers = {
         "api-key": MURF_API_KEY,
         "Content-Type": "application/json"
@@ -89,19 +91,24 @@ def generate_speech(text, voice_id, locale):
 
     return temp_file.name
 
+
 # -------------------- Gemini Description Generator --------------------
 def generate_description(place, answer_type, language):
+
     prompt = PROMPTS[answer_type].format(
         place=place,
         language=language
     )
 
     response = model.generate_content(prompt)
+
     return response.text
+
 
 # -------------------- API Route --------------------
 @app.route("/generate-audio-guide", methods=["POST"])
 def generate_audio_guide():
+
     data = request.json
 
     place = data.get("place")
@@ -113,9 +120,13 @@ def generate_audio_guide():
     if not all([place, answer_type, language, voice_id, locale]):
         return jsonify({"error": "Missing required fields"}), 400
 
+    # Generate text description
     text_description = generate_description(place, answer_type, language)
+
+    # Generate speech
     audio_path = generate_speech(text_description, voice_id, locale)
 
+    # Convert audio to base64
     with open(audio_path, "rb") as audio_file:
         encoded_audio = base64.b64encode(audio_file.read()).decode("utf-8")
 
@@ -124,6 +135,19 @@ def generate_audio_guide():
         "audioBase64": encoded_audio
     })
 
-# -------------------- Entry Point --------------------
+
+# -------------------- Health Check Route --------------------
+@app.route("/")
+def home():
+    return jsonify({"message": "Travel Guide Backend Running"})
+
+
+# -------------------- Run Server --------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
