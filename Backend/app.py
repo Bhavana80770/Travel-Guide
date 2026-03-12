@@ -14,8 +14,15 @@ load_dotenv()
 MURF_API_KEY = os.getenv("MURF_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+if not MURF_API_KEY:
+    print("WARNING: MURF_API_KEY is missing!")
+if not GEMINI_API_KEY:
+    print("WARNING: GEMINI_API_KEY is missing!")
+
 if not MURF_API_KEY or not GEMINI_API_KEY:
     raise ValueError("API keys not found. Check Render environment variables.")
+
+print("API keys found. Backend initialized.")
 
 # -------------------- Gemini Setup --------------------
 genai.configure(api_key=GEMINI_API_KEY)
@@ -56,7 +63,8 @@ Respond ONLY in {language}.
 
 # -------------------- Flask App --------------------
 app = Flask(__name__)
-CORS(app)
+# Explicitly allow all origins and headers for CORS
+CORS(app, resources={r"/*": {"origins": "*", "allow_headers": ["Content-Type", "Authorization"]}})
 
 # -------------------- Murf Speech Generator --------------------
 def generate_speech(text, voice_id, locale):
