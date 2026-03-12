@@ -26,7 +26,6 @@ print("API keys found. Backend initialized.")
 
 # -------------------- Gemini Setup --------------------
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
 
 # -------------------- Prompt Templates --------------------
 PROMPTS = {
@@ -102,15 +101,30 @@ def generate_speech(text, voice_id, locale):
 
 # -------------------- Gemini Description Generator --------------------
 def generate_description(place, answer_type, language):
-
     prompt = PROMPTS[answer_type].format(
         place=place,
         language=language
     )
 
-    response = model.generate_content(prompt)
-
-    return response.text
+    # Try different model names to avoid 404 errors
+    models_to_try = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"]
+    
+    last_err = None
+    for model_name in models_to_try:
+        try:
+            print(f"Attempting to use model: {model_name}")
+            current_model = genai.GenerativeModel(model_name)
+            response = current_model.generate_content(prompt)
+            print(f"Successfully generated content with {model_name}")
+            return response.text
+        except Exception as e:
+            print(f"Failed to use {model_name}: {str(e)}")
+            last_err = e
+            continue
+    
+    if last_err:
+        raise last_err
+    return "Failed to generate description with any available model."
 
 
 # -------------------- API Route --------------------
