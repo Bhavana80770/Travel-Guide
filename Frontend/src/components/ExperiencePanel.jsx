@@ -12,6 +12,7 @@ export default function ExperiencePanel({ place, onClose }) {
     const [transcript, setTranscript] = useState("");
     const [audioBase64, setAudioBase64] = useState(null);
     const [transcriptOpen, setTranscriptOpen] = useState(false);
+    const [backendError, setBackendError] = useState("");
 
     const panelRef = useRef(null);
     const audioRef = useRef(null);
@@ -57,13 +58,17 @@ export default function ExperiencePanel({ place, onClose }) {
                     locale: LOCALES[language],
                 }),
             });
-            if (!res.ok) throw new Error("Generation failed");
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Generation failed");
+            }
             const data = await res.json();
             setTranscript(data.description);
             setAudioBase64(data.audioBase64 || null);
             setStatus("done");
         } catch (err) {
             console.error(err);
+            setBackendError(err.message);
             setStatus("error");
         }
     }
@@ -186,9 +191,19 @@ export default function ExperiencePanel({ place, onClose }) {
 
                 {/* Error message */}
                 {status === "error" && (
-                    <p className="mt-3 text-sm text-red-500 text-center">
-                        Generation failed. Please check your connection.
-                    </p>
+                    <div className="mt-3 text-center">
+                        <p className="text-sm text-red-500 font-medium">
+                            Generation failed.
+                        </p>
+                        {backendError && (
+                            <p className="mt-1 text-xs text-red-400 bg-red-50 p-2 rounded-lg border border-red-100 break-words">
+                                {backendError}
+                            </p>
+                        )}
+                        <p className="mt-2 text-[10px] text-gray-400">
+                            Check your Render dashboard logs for more details.
+                        </p>
+                    </div>
                 )}
 
                 {/* Audio section */}
