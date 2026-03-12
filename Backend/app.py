@@ -19,7 +19,7 @@ if not MURF_API_KEY or not GEMINI_API_KEY:
 
 # -------------------- Gemini Setup --------------------
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # -------------------- Prompt Templates --------------------
 PROMPTS = {
@@ -120,20 +120,28 @@ def generate_audio_guide():
     if not all([place, answer_type, language, voice_id, locale]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Generate text description
-    text_description = generate_description(place, answer_type, language)
+    try:
+        # Generate text description
+        print(f"Generating description for {place} in {language}...")
+        text_description = generate_description(place, answer_type, language)
+        print("Description generated successfully.")
 
-    # Generate speech
-    audio_path = generate_speech(text_description, voice_id, locale)
+        # Generate speech
+        print(f"Generating speech with voice {voice_id}...")
+        audio_path = generate_speech(text_description, voice_id, locale)
+        print("Speech generated successfully.")
 
-    # Convert audio to base64
-    with open(audio_path, "rb") as audio_file:
-        encoded_audio = base64.b64encode(audio_file.read()).decode("utf-8")
+        # Convert audio to base64
+        with open(audio_path, "rb") as audio_file:
+            encoded_audio = base64.b64encode(audio_file.read()).decode("utf-8")
 
-    return jsonify({
-        "description": text_description,
-        "audioBase64": encoded_audio
-    })
+        return jsonify({
+            "description": text_description,
+            "audioBase64": encoded_audio
+        })
+    except Exception as e:
+        print(f"Error in generate_audio_guide: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 # -------------------- Health Check Route --------------------
