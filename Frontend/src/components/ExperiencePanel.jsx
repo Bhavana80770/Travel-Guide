@@ -44,6 +44,7 @@ export default function ExperiencePanel({ place, onClose }) {
 
     async function handleGenerate() {
         setStatus("loading");
+        console.log("Calling API URL:", GENERATE_AUDIO_GUIDE_API_URL);
         try {
             const res = await fetch(GENERATE_AUDIO_GUIDE_API_URL, {
                 method: "POST",
