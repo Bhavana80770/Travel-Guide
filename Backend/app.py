@@ -65,6 +65,32 @@ app = Flask(__name__)
 # Explicitly allow all origins and headers for CORS
 CORS(app, resources={r"/*": {"origins": "*", "allow_headers": ["Content-Type", "Authorization"]}})
 
+# -------------------- Health Check Route --------------------
+@app.route("/")
+def home():
+    return jsonify({"message": "Travel Guide Backend v3 - Debug Mode Live"})
+
+# -------------------- Debug Models Route --------------------
+@app.route("/debug-models")
+def debug_models():
+    try:
+        models = []
+        for m in genai.list_models():
+            models.append({
+                "name": m.name,
+                "supported_methods": m.supported_generation_methods,
+                "display_name": m.display_name
+            })
+        return jsonify({
+            "available_models": models,
+            "status": "success"
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "status": "failed"
+        }), 500
+
 # -------------------- Murf Speech Generator --------------------
 def generate_speech(text, voice_id, locale):
     temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
@@ -106,13 +132,14 @@ def generate_description(place, answer_type, language):
         language=language
     )
 
-    # Expanded fallback list to handle regional model name differences
+    # Expanded fallback list to handle regional model name differences and prefixes
     models_to_try = [
         "gemini-1.5-flash", 
         "gemini-1.5-flash-latest", 
-        "gemini-1.5-flash-001", 
-        "gemini-1.5-flash-002",
+        "models/gemini-1.5-flash", 
+        "models/gemini-1.5-flash-latest", 
         "gemini-pro",
+        "models/gemini-pro",
         "gemini-1.0-pro"
     ]
     
@@ -173,32 +200,6 @@ def generate_audio_guide():
         return jsonify({"error": str(e)}), 500
 
 
-# -------------------- Health Check Route --------------------
-@app.route("/")
-def home():
-    return jsonify({"message": "Travel Guide Backend Running"})
-
-
-# -------------------- Debug Models Route --------------------
-@app.route("/debug-models")
-def debug_models():
-    try:
-        models = []
-        for m in genai.list_models():
-            models.append({
-                "name": m.name,
-                "supported_methods": m.supported_generation_methods,
-                "display_name": m.display_name
-            })
-        return jsonify({
-            "available_models": models,
-            "status": "success"
-        })
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "status": "failed"
-        }), 500
 
 
 # -------------------- Run Server --------------------
