@@ -106,8 +106,15 @@ def generate_description(place, answer_type, language):
         language=language
     )
 
-    # Try different model names to avoid 404 errors
-    models_to_try = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"]
+    # Expanded fallback list to handle regional model name differences
+    models_to_try = [
+        "gemini-1.5-flash", 
+        "gemini-1.5-flash-latest", 
+        "gemini-1.5-flash-001", 
+        "gemini-1.5-flash-002",
+        "gemini-pro",
+        "gemini-1.0-pro"
+    ]
     
     last_err = None
     for model_name in models_to_try:
@@ -170,6 +177,28 @@ def generate_audio_guide():
 @app.route("/")
 def home():
     return jsonify({"message": "Travel Guide Backend Running"})
+
+
+# -------------------- Debug Models Route --------------------
+@app.route("/debug-models")
+def debug_models():
+    try:
+        models = []
+        for m in genai.list_models():
+            models.append({
+                "name": m.name,
+                "supported_methods": m.supported_generation_methods,
+                "display_name": m.display_name
+            })
+        return jsonify({
+            "available_models": models,
+            "status": "success"
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "status": "failed"
+        }), 500
 
 
 # -------------------- Run Server --------------------
