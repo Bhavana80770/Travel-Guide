@@ -1,4 +1,4 @@
-# Deploy Trigger: v5.6 - Global Error Capture & Timeout Fix
+# Deploy Trigger: v5.7 - Strict Internal Timeouts
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from werkzeug.exceptions import HTTPException
@@ -85,7 +85,8 @@ def generate_speech(text, voice_id, locale):
         "voice_id": voice_id, "text": text, "multi_native_locale": locale,
         "model": "FALCON", "format": "MP3", "sampleRate": 24000, "channelType": "MONO"
     }
-    response = requests.post(url, headers=headers, json=data, stream=True, timeout=25)
+    # Tight timeout for Murf
+    response = requests.post(url, headers=headers, json=data, stream=True, timeout=12)
     if response.status_code == 200:
         with open(temp_file.name, "wb") as f:
             for chunk in response.iter_content(chunk_size=1024):
@@ -98,13 +99,11 @@ def generate_speech(text, voice_id, locale):
 def generate_description(place, answer_type, language):
     prompt = PROMPTS[answer_type].format(place=place, language=language)
     
-    # Optimized model list: Flash 2.0 is fastest and confirmed available
+    # Models specifically from the /debug-models list
     models_to_try = [
-        "gemini-2.0-flash",           # Fastest / Best for quotas
-        "gemini-2.5-flash",           # Confirmed in diagnostics
-        "gemini-1.5-flash",           # Stable fallback
-        "gemini-2.0-flash-lite",      # Lite version
-        "gemini-flash-latest"
+        "gemini-2.0-flash",           # Choice 1
+        "gemini-2.5-flash",           # Choice 2
+        "gemini-flash-latest",        # Choice 3
     ]
     
     errors = []
@@ -113,19 +112,22 @@ def generate_description(place, answer_type, language):
             print(f"DEBUG: Attempting model {model_name}...")
             m_path = model_name if model_name.startswith("models/") else f"models/{model_name}"
             current_model = genai.GenerativeModel(m_path)
-            # Add a timeout to content generation too
-            response = current_model.generate_content(prompt)
+            # CRITICAL: Added request_options with 10s timeout to prevent platform kill
+            response = current_model.generate_content(
+                prompt, 
+                request_options={"timeout": 10}
+            )
             if response and response.text:
                 print(f"SUCCESS: Generated content using {model_name}")
                 return response.text
             else:
-                errors.append(f"{model_name}: Empty response")
+                errors.append(f"{model_name}: Empty/No text in response")
         except Exception as e:
             err_msg = str(e)
             print(f"FAILED: {model_name}: {err_msg}")
             errors.append(f"{model_name}: {err_msg}")
             
-    detailed_error = "Gemini generation failed. Errors: " + " | ".join(errors)
+    detailed_error = "All AI models failed or timed out. | " + " | ".join(errors)
     raise Exception(detailed_error)
 
 # -------------------- API Route --------------------
