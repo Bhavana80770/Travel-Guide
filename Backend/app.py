@@ -80,18 +80,17 @@ def generate_speech(text, voice_id, locale):
 def generate_description(place, answer_type, language):
     prompt = PROMPTS[answer_type].format(place=place, language=language)
     
-    # Exact models found in diagnostics for this specific project
+    # Adding experimental preview models confirmed in user terminal logs
     models_to_try = [
-        "gemini-2.5-flash",           # Available stable 2.5
-        "gemini-2.0-flash-lite",      # Lite version 2.0
-        "gemini-flash-latest",        # General latest flash
-        "gemini-3.1-flash-lite-preview", # Newer lite edition
-        "gemini-2.5-pro",
-        "gemini-pro-latest",
-        "models/gemini-2.5-flash",
-        "models/gemini-2.0-flash-lite",
-        "models/gemini-flash-latest",
-        "models/gemini-3.1-flash-lite-preview"
+        "gemini-2.5-computer-use-preview-10-2025",
+        "deep-research-pro-preview-12-2025",
+        "gemini-robotics-er-1.5-preview",
+        "models/gemini-2.5-computer-use-preview-10-2025",
+        "models/deep-research-pro-preview-12-2025",
+        "models/gemini-robotics-er-1.5-preview",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash-lite",
+        "models/gemini-2.5-flash"
     ]
     
     errors = []
