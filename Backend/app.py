@@ -40,20 +40,13 @@ PROMPTS = {
 
 # -------------------- Flask App --------------------
 app = Flask(__name__)
-# Simplify CORS initialization
-CORS(app, supports_credentials=True)
-
-@app.after_request
-def add_cors_headers(response):
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-    return response
+# Clean CORS setup: allow all origins, no credentials conflict
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route("/")
 def home():
     return jsonify({
-        "message": "Travel Guide Backend v5.2 - CORS Fixed",
+        "message": "Travel Guide Backend v5.3 - Clean CORS",
         "gemini_api_key_set": bool(GEMINI_API_KEY),
         "murf_api_key_set": bool(MURF_API_KEY)
     })
@@ -127,8 +120,6 @@ def handle_internal_error(e):
     print(f"CRITICAL 500 ERROR: {str(e)}")
     response = jsonify({"error": "Internal Server Error", "details": str(e)})
     response.status_code = 500
-    # Manual CORS headers just in case
-    response.headers.add("Access-Control-Allow-Origin", "*")
     return response
 
 # -------------------- API Route --------------------
@@ -165,7 +156,6 @@ def generate_audio_guide():
         print(f"ROUTE ERROR: {full_err}")
         response = jsonify({"error": full_err})
         response.status_code = 500
-        response.headers.add("Access-Control-Allow-Origin", "*")
         return response
 
 if __name__ == "__main__":
