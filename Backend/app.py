@@ -40,12 +40,20 @@ PROMPTS = {
 
 # -------------------- Flask App --------------------
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*", "allow_headers": ["Content-Type", "Authorization"]}})
+# Simplify CORS initialization
+CORS(app, supports_credentials=True)
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
+    return response
 
 @app.route("/")
 def home():
     return jsonify({
-        "message": "Travel Guide Backend v5.1 - Stable",
+        "message": "Travel Guide Backend v5.2 - CORS Fixed",
         "gemini_api_key_set": bool(GEMINI_API_KEY),
         "murf_api_key_set": bool(MURF_API_KEY)
     })
