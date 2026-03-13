@@ -45,9 +45,10 @@ CORS(app, resources={r"/*": {"origins": "*", "allow_headers": ["Content-Type", "
 @app.route("/")
 def home():
     return jsonify({
-        "message": "Travel Guide Backend v4 - Running",
+        "message": "Travel Guide Backend v5 - Active",
         "gemini_api_key_set": bool(GEMINI_API_KEY),
-        "murf_api_key_set": bool(MURF_API_KEY)
+        "murf_api_key_set": bool(MURF_API_KEY),
+        "supported_models_count": len(genai.list_models()) if GEMINI_API_KEY else 0
     })
 
 @app.route("/debug-models")
