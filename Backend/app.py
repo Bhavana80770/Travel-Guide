@@ -40,13 +40,29 @@ PROMPTS = {
 
 # -------------------- Flask App --------------------
 app = Flask(__name__)
-# Clean CORS setup: allow all origins, no credentials conflict
-CORS(app, resources={r"/*": {"origins": "*"}})
+# Keep Flask-CORS as well
+CORS(app)
+
+@app.before_request
+def handle_options_manually():
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        return response
+
+@app.after_request
+def force_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    return response
 
 @app.route("/")
 def home():
     return jsonify({
-        "message": "Travel Guide Backend v5.3 - Clean CORS",
+        "message": "Travel Guide Backend v5.4 - Nuclear CORS",
         "gemini_api_key_set": bool(GEMINI_API_KEY),
         "murf_api_key_set": bool(MURF_API_KEY)
     })
