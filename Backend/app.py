@@ -80,17 +80,16 @@ def generate_speech(text, voice_id, locale):
 def generate_description(place, answer_type, language):
     prompt = PROMPTS[answer_type].format(place=place, language=language)
     
-    # Updated list of models based on current availability (v1 and v1beta)
-    # Note: 'gemini-pro' is often redirected to 'gemini-1.0-pro'
+    # Prioritize 8b and Lite models as they often have higher availability for free-tier users
     models_to_try = [
-        "gemini-2.0-flash",           # Newest & Fastest
-        "gemini-1.5-flash",           # Highly stable & Fast
+        "gemini-1.5-flash-8b",        # Best chance for quota
+        "gemini-1.5-flash",           # Standard
         "gemini-1.5-flash-latest",
-        "gemini-1.5-pro",            # Capabilities
-        "gemini-1.0-pro",            # Legacy Pro
-        "models/gemini-2.0-flash",   
+        "gemini-2.0-flash-lite-preview", # New Lite model
+        "gemini-2.0-flash",
+        "gemini-1.0-pro",
+        "models/gemini-1.5-flash-8b",
         "models/gemini-1.5-flash",
-        "models/gemini-1.5-pro",
         "models/gemini-1.0-pro"
     ]
     
