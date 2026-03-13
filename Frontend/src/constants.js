@@ -77,5 +77,5 @@ export const PLACES = [
 ];
 
 // --- Backend API URL ---
-// Use environment variable for production, fallback to local for development
-export const GENERATE_AUDIO_GUIDE_API_URL = import.meta.env.VITE_API_URL || "https://travel-guide-wd9z.onrender.com/generate-audio-guide";
+// Use environment variable for production, fallback to Vercel proxy for production sharing
+export const GENERATE_AUDIO_GUIDE_API_URL = import.meta.env.VITE_API_URL || "/api/generate-audio-guide";
