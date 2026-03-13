@@ -59,9 +59,29 @@ export default function ExperiencePanel({ place, onClose }) {
                 }),
             });
             if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "Generation failed");
+                let errorMsg = "Generation failed";
+                try {
+                    const contentType = res.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const errorData = await res.json();
+                        errorMsg = errorData.error || errorData.details || errorMsg;
+                    } else {
+                        // Handle HTML or other non-JSON error responses (like Render timeouts)
+                        const text = await res.text();
+                        console.error("Non-JSON error response:", text);
+                        errorMsg = `Server Error (${res.status}): The backend returned a non-JSON response. This usually means a timeout or server crash.`;
+                    }
+                } catch (e) {
+                    errorMsg = `Error parsing response: ${res.statusText}`;
+                }
+                throw new Error(errorMsg);
             }
+            
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Invalid response format from server (Expected JSON)");
+            }
+
             const data = await res.json();
             setTranscript(data.description);
             setAudioBase64(data.audioBase64 || null);

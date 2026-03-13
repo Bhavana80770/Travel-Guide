@@ -56,10 +56,17 @@ def home():
 # --- Catch-ALL Exception Handler ---
 @app.errorhandler(Exception)
 def handle_exception(e):
+    # Always return JSON even for HTML-default exceptions
     if isinstance(e, HTTPException):
-        return e
-    print(f"CRITICAL ERROR: {str(e)}")
-    return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
+        return jsonify({"error": e.name, "details": e.description}), e.code
+    
+    err_msg = str(e)
+    print(f"CRITICAL ERROR: {err_msg}")
+    return jsonify({
+        "error": "Internal Server Error",
+        "details": err_msg,
+        "advice": "Check Gemini quota or Render logs for timeout."
+    }), 500
 
 @app.route("/debug-models")
 def debug_models():
@@ -78,7 +85,7 @@ def generate_speech(text, voice_id, locale):
         "voice_id": voice_id, "text": text, "multi_native_locale": locale,
         "model": "FALCON", "format": "MP3", "sampleRate": 24000, "channelType": "MONO"
     }
-    response = requests.post(url, headers=headers, json=data, stream=True)
+    response = requests.post(url, headers=headers, json=data, stream=True, timeout=25)
     if response.status_code == 200:
         with open(temp_file.name, "wb") as f:
             for chunk in response.iter_content(chunk_size=1024):
@@ -91,25 +98,22 @@ def generate_speech(text, voice_id, locale):
 def generate_description(place, answer_type, language):
     prompt = PROMPTS[answer_type].format(place=place, language=language)
     
-    # Models CONFIRMED available in diagnostics for this project
+    # Optimized model list: Flash 2.0 is fastest and confirmed available
     models_to_try = [
-        "gemini-2.5-flash",           # Showed up in diagnostics list
-        "gemini-2.0-flash",           # Common
-        "gemini-2.5-flash-lite",      # Showed up
-        "gemini-2.0-flash-lite",      # Showed up
-        "gemini-flash-latest",
-        "gemini-2.5-computer-use-preview-10-2025", # Showed up in user logs
-        "deep-research-pro-preview-12-2025",       # Showed up in user logs
-        "gemini-robotics-er-1.5-preview"          # Showed up in user logs
+        "gemini-2.0-flash",           # Fastest / Best for quotas
+        "gemini-2.5-flash",           # Confirmed in diagnostics
+        "gemini-1.5-flash",           # Stable fallback
+        "gemini-2.0-flash-lite",      # Lite version
+        "gemini-flash-latest"
     ]
     
     errors = []
     for model_name in models_to_try:
         try:
             print(f"DEBUG: Attempting model {model_name}...")
-            # Use models/ prefix explicitly to be safe
             m_path = model_name if model_name.startswith("models/") else f"models/{model_name}"
             current_model = genai.GenerativeModel(m_path)
+            # Add a timeout to content generation too
             response = current_model.generate_content(prompt)
             if response and response.text:
                 print(f"SUCCESS: Generated content using {model_name}")
@@ -121,7 +125,7 @@ def generate_description(place, answer_type, language):
             print(f"FAILED: {model_name}: {err_msg}")
             errors.append(f"{model_name}: {err_msg}")
             
-    detailed_error = "All Gemini models failed. | " + " | ".join(errors)
+    detailed_error = "Gemini generation failed. Errors: " + " | ".join(errors)
     raise Exception(detailed_error)
 
 # -------------------- API Route --------------------
@@ -130,20 +134,21 @@ def generate_description(place, answer_type, language):
 def generate_audio_guide():
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
-    data = request.json
-    if not data:
-        return jsonify({"error": "No JSON payload provided"}), 400
-
-    place = data.get("place")
-    answer_type = data.get("answerType")
-    language = data.get("language")
-    voice_id = data.get("voiceId")
-    locale = data.get("locale")
-
-    if not all([place, answer_type, language, voice_id, locale]):
-        return jsonify({"error": "Missing required fields"}), 400
-
+    
     try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No JSON payload provided"}), 400
+
+        place = data.get("place")
+        answer_type = data.get("answerType")
+        language = data.get("language")
+        voice_id = data.get("voiceId")
+        locale = data.get("locale")
+
+        if not all([place, answer_type, language, voice_id, locale]):
+            return jsonify({"error": "Missing required fields"}), 400
+
         print(f"Processing: {place} ({language})")
         text_description = generate_description(place, answer_type, language)
         audio_path = generate_speech(text_description, voice_id, locale)
@@ -159,9 +164,7 @@ def generate_audio_guide():
     except Exception as e:
         full_err = str(e)
         print(f"ROUTE ERROR: {full_err}")
-        response = jsonify({"error": full_err})
-        response.status_code = 500
-        return response
+        return jsonify({"error": full_err}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
