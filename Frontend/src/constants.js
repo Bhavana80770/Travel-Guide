@@ -78,4 +78,4 @@ export const PLACES = [
 
 // --- Backend API URL ---
 // Use environment variable for production, fallback to local for development
-export const GENERATE_AUDIO_GUIDE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/generate-audio-guide";
+export const GENERATE_AUDIO_GUIDE_API_URL = import.meta.env.VITE_API_URL || "https://travel-guide-wd9z.onrender.com/generate-audio-guide";
