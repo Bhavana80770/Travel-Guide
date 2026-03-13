@@ -80,47 +80,56 @@ def generate_speech(text, voice_id, locale):
 def generate_description(place, answer_type, language):
     prompt = PROMPTS[answer_type].format(place=place, language=language)
     
-    # Adding experimental preview models confirmed in user terminal logs
+    # Models CONFIRMED available in diagnostics for this project
     models_to_try = [
-        "gemini-2.5-computer-use-preview-10-2025",
-        "deep-research-pro-preview-12-2025",
-        "gemini-robotics-er-1.5-preview",
-        "models/gemini-2.5-computer-use-preview-10-2025",
-        "models/deep-research-pro-preview-12-2025",
-        "models/gemini-robotics-er-1.5-preview",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash-lite",
-        "models/gemini-2.5-flash"
+        "gemini-2.5-flash",           # Showed up in diagnostics list
+        "gemini-2.0-flash",           # Common
+        "gemini-2.5-flash-lite",      # Showed up
+        "gemini-2.0-flash-lite",      # Showed up
+        "gemini-flash-latest",
+        "gemini-2.5-computer-use-preview-10-2025", # Showed up in user logs
+        "deep-research-pro-preview-12-2025",       # Showed up in user logs
+        "gemini-robotics-er-1.5-preview"          # Showed up in user logs
     ]
     
     errors = []
     for model_name in models_to_try:
         try:
             print(f"DEBUG: Attempting model {model_name}...")
-            # We explicitly check if the model exists in the list first if possible,
-            # but list_models() might fail too, so we just try/catch.
-            current_model = genai.GenerativeModel(model_name)
+            # Use models/ prefix explicitly to be safe
+            m_path = model_name if model_name.startswith("models/") else f"models/{model_name}"
+            current_model = genai.GenerativeModel(m_path)
             response = current_model.generate_content(prompt)
             if response and response.text:
                 print(f"SUCCESS: Generated content using {model_name}")
                 return response.text
             else:
-                print(f"WARNING: Model {model_name} returned empty response.")
                 errors.append(f"{model_name}: Empty response")
         except Exception as e:
             err_msg = str(e)
-            print(f"FAILED: Model {model_name} error: {err_msg}")
+            print(f"FAILED: {model_name}: {err_msg}")
             errors.append(f"{model_name}: {err_msg}")
-            continue
-    
-    # If all fail, provide a detailed summary
-    detailed_error = "All Gemini models failed. Errors: " + " | ".join(errors)
+            
+    detailed_error = "All Gemini models failed. | " + " | ".join(errors)
     raise Exception(detailed_error)
+
+# -------------------- Global Error Handler (CORS friendly) --------------------
+@app.errorhandler(500)
+def handle_internal_error(e):
+    print(f"CRITICAL 500 ERROR: {str(e)}")
+    response = jsonify({"error": "Internal Server Error", "details": str(e)})
+    response.status_code = 500
+    # Manual CORS headers just in case
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
 
 # -------------------- API Route --------------------
 @app.route("/generate-audio-guide", methods=["POST"])
 def generate_audio_guide():
     data = request.json
+    if not data:
+        return jsonify({"error": "No JSON payload provided"}), 400
+
     place = data.get("place")
     answer_type = data.get("answerType")
     language = data.get("language")
@@ -134,13 +143,22 @@ def generate_audio_guide():
         print(f"Processing: {place} ({language})")
         text_description = generate_description(place, answer_type, language)
         audio_path = generate_speech(text_description, voice_id, locale)
+        
         with open(audio_path, "rb") as audio_file:
             encoded_audio = base64.b64encode(audio_file.read()).decode("utf-8")
+        
+        # Cleanup temp file
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
 
         return jsonify({"description": text_description, "audioBase64": encoded_audio})
     except Exception as e:
-        print(f"FULL ERROR: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        full_err = str(e)
+        print(f"ROUTE ERROR: {full_err}")
+        response = jsonify({"error": full_err})
+        response.status_code = 500
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        return response
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
