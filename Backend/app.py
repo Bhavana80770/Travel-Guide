@@ -80,31 +80,43 @@ def generate_speech(text, voice_id, locale):
 def generate_description(place, answer_type, language):
     prompt = PROMPTS[answer_type].format(place=place, language=language)
     
-    # Try multiple variations and prefixes
+    # Updated list of models based on current availability (v1 and v1beta)
+    # Note: 'gemini-pro' is often redirected to 'gemini-1.0-pro'
     models_to_try = [
-        "gemini-1.5-flash", 
-        "gemini-1.5-flash-latest", 
-        "models/gemini-1.5-flash", 
-        "models/gemini-1.5-flash-latest",
-        "gemini-1.5-pro",
+        "gemini-2.0-flash",           # Newest & Fastest
+        "gemini-1.5-flash",           # Highly stable & Fast
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",            # Capabilities
+        "gemini-1.0-pro",            # Legacy Pro
+        "models/gemini-2.0-flash",   
+        "models/gemini-1.5-flash",
         "models/gemini-1.5-pro",
-        "gemini-pro"
+        "models/gemini-1.0-pro"
     ]
     
-    last_err = None
+    errors = []
     for model_name in models_to_try:
         try:
-            print(f"Attempting model: {model_name}")
+            print(f"DEBUG: Attempting model {model_name}...")
+            # We explicitly check if the model exists in the list first if possible,
+            # but list_models() might fail too, so we just try/catch.
             current_model = genai.GenerativeModel(model_name)
             response = current_model.generate_content(prompt)
-            print(f"SUCCESS with {model_name}")
-            return response.text
+            if response and response.text:
+                print(f"SUCCESS: Generated content using {model_name}")
+                return response.text
+            else:
+                print(f"WARNING: Model {model_name} returned empty response.")
+                errors.append(f"{model_name}: Empty response")
         except Exception as e:
-            print(f"FAILED {model_name}: {str(e)}")
-            last_err = e
+            err_msg = str(e)
+            print(f"FAILED: Model {model_name} error: {err_msg}")
+            errors.append(f"{model_name}: {err_msg}")
             continue
     
-    raise last_err
+    # If all fail, provide a detailed summary
+    detailed_error = "All Gemini models failed. Errors: " + " | ".join(errors)
+    raise Exception(detailed_error)
 
 # -------------------- API Route --------------------
 @app.route("/generate-audio-guide", methods=["POST"])
