@@ -1,6 +1,7 @@
-# Deploy Trigger: v5.4.1 - Nuclear CORS Fix Live
+# Deploy Trigger: v5.6 - Global Error Capture & Timeout Fix
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
+from werkzeug.exceptions import HTTPException
 import requests
 import tempfile
 import base64
@@ -47,10 +48,18 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 @app.route("/")
 def home():
     return jsonify({
-        "message": "Travel Guide Backend v5.5 - Standard CORS",
+        "message": "Travel Guide Backend v5.6 - Robust Errors",
         "gemini_api_key_set": bool(GEMINI_API_KEY),
         "murf_api_key_set": bool(MURF_API_KEY)
     })
+
+# --- Catch-ALL Exception Handler ---
+@app.errorhandler(Exception)
+def handle_exception(e):
+    if isinstance(e, HTTPException):
+        return e
+    print(f"CRITICAL ERROR: {str(e)}")
+    return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
 
 @app.route("/debug-models")
 def debug_models():
@@ -114,14 +123,6 @@ def generate_description(place, answer_type, language):
             
     detailed_error = "All Gemini models failed. | " + " | ".join(errors)
     raise Exception(detailed_error)
-
-# -------------------- Global Error Handler (CORS friendly) --------------------
-@app.errorhandler(500)
-def handle_internal_error(e):
-    print(f"CRITICAL 500 ERROR: {str(e)}")
-    response = jsonify({"error": "Internal Server Error", "details": str(e)})
-    response.status_code = 500
-    return response
 
 # -------------------- API Route --------------------
 @app.route("/generate-audio-guide", methods=["POST", "OPTIONS"])

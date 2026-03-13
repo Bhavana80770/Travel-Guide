@@ -4,7 +4,7 @@ services:
     name: travel-guide-backend
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --timeout 120 --workers 4 app:app
     envVars:
       - key: PORT
         value: 5000
